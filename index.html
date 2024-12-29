@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> CodeMasterXWeb Image Uploader</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        header {
+            background-color: #333;
+            color: #fff;
+            width: 100%;
+            padding: 10px 0;
+            text-align: center;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        input[type="file"] {
+            margin-bottom: 20px;
+        }
+        .history {
+            margin-top: 20px;
+        }
+        .history-item {
+            border-bottom: 1px solid #ddd;
+            padding: 10px 0;
+        }
+        .history-item:last-child {
+            border-bottom: none;
+        }
+        .history-item p {
+            margin: 5px 0;
+        }
+        .copy-btn {
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .copy-btn:hover {
+            background-color: #0056b3;
+        }
+        .clear-history-btn {
+            background-color: #FF5733;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .clear-history-btn:hover {
+            background-color: #C70039;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Image Uploader</h1>
+    </header>
+    <div class="container">
+        <input type="file" id="imageInput" accept="image/*">
+        <button id="uploadBtn">Upload</button>
+        <div class="history" id="history">
+            <h2>Upload History</h2>
+            <!-- Lịch sử tải lên sẽ hiển thị ở đây -->
+        </div>
+        <button id="clearHistoryBtn" class="clear-history-btn">Clear History</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const CLIENT_ID = 'YOUR_IMGUR_CLIENT_ID'; // Thay YOUR_IMGUR_CLIENT_ID bằng Client ID của bạn
+
+            const imageInput = document.getElementById('imageInput');
+            const uploadBtn = document.getElementById('uploadBtn');
+            const historyContainer = document.getElementById('history');
+            const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+
+            // Hiển thị lịch sử tải lên từ LocalStorage
+            const uploadHistory = JSON.parse(localStorage.getItem('uploadHistory')) || [];
+            uploadHistory.forEach(item => addHistoryItem(item));
+
+            uploadBtn.addEventListener('click', function () {
+                const file = imageInput.files[0];
+                if (file) {
+                    const formData = new FormData();
+                    formData.append('image', file);
+
+                    fetch('https://api.imgur.com/3/image', {
+                        method: 'POST',
+                        headers: {
+                            Authorization: `Client-ID ${CLIENT_ID}`
+                        },
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const imageUrl = data.data.link;
+                            const timestamp = new Date().toLocaleString();
+                            const historyItem = { timestamp, imageUrl };
+                            
+                            // Lưu lịch sử vào LocalStorage
+                            uploadHistory.push(historyItem);
+                            localStorage.setItem('uploadHistory', JSON.stringify(uploadHistory));
+                            
+                            // Hiển thị lịch sử mới
+                            addHistoryItem(historyItem);
+                        } else {
+                            alert('Image upload failed!');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Image upload failed!');
+                    });
+                } else {
+                    alert('Please select an image file to upload.');
+                }
+            });
+
+            function addHistoryItem(item) {
+                const historyItemDiv = document.createElement('div');
+                historyItemDiv.className = 'history-item';
+                historyItemDiv.innerHTML = `
+                    <p><strong>Time:</strong> ${item.timestamp}</p>
+                    <p><strong>Link:</strong> <a href="${item.imageUrl}" target="_blank">${item.imageUrl}</a></p>
+                    <button class="copy-btn" data-link="${item.imageUrl}">Copy Link</button>
+                `;
+                historyContainer.appendChild(historyItemDiv);
+            }
+
+            historyContainer.addEventListener('click', function (event) {
+                if (event.target.classList.contains('copy-btn')) {
+                    const link = event.target.getAttribute('data-link');
+                    navigator.clipboard.writeText(link).then(() => {
+                        alert('Link copied to clipboard!');
+                    });
+                }
+            });
+
+            clearHistoryBtn.addEventListener('click', function () {
+                localStorage.removeItem('uploadHistory');
+                historyContainer.innerHTML = '<h2>Upload History</h2>';
+            });
+        });
+    </script>
+</body>
+</html>
